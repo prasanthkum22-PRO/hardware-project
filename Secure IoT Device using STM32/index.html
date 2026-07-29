@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Panel — Room Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #1B1D21;
+    --panel: #24272D;
+    --panel-raised: #2C3038;
+    --amber: #E8A33D;
+    --teal: #4FD1C5;
+    --text: #EDEAE3;
+    --text-dim: #8A8D94;
+    --line: #383C44;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(232,163,61,0.05), transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(79,209,197,0.05), transparent 40%);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .board {
+    width: 100%;
+    max-width: 480px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 28px;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.35);
+  }
+
+  .board-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 22px;
+  }
+
+  h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: 0.02em;
+  }
+
+  .status-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .status-dot::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--teal);
+    box-shadow: 0 0 6px var(--teal);
+  }
+
+  .readouts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+
+  .gauge {
+    background: var(--panel-raised);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 14px;
+  }
+
+  .gauge-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+
+  .gauge-value {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--teal);
+    line-height: 1;
+  }
+
+  .gauge-value span {
+    font-size: 14px;
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+
+  .motion-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--panel-raised);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 22px;
+  }
+
+  .motion-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .motion-state {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+
+  .motion-state.clear { color: var(--text-dim); background: rgba(255,255,255,0.04); }
+  .motion-state.detected { color: var(--bg); background: var(--amber); }
+
+  .switch-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px dashed var(--line);
+    padding-top: 20px;
+  }
+
+  .switch-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  .switch-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* Rocker switch */
+  .rocker {
+    width: 68px;
+    height: 36px;
+    background: #15171A;
+    border-radius: 20px;
+    border: 1px solid var(--line);
+    position: relative;
+    cursor: pointer;
+    transition: background 0.25s ease;
+  }
+
+  .rocker.on {
+    background: linear-gradient(180deg, #7a5420, #5c3f18);
+    box-shadow: inset 0 0 12px rgba(232,163,61,0.5);
+  }
+
+  .knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #45494f;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    transition: transform 0.25s ease, background 0.25s ease;
+  }
+
+  .rocker.on .knob {
+    transform: translateX(32px);
+    background: var(--amber);
+    box-shadow: 0 0 10px var(--amber);
+  }
+
+  .footer-note {
+    margin-top: 20px;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+</style>
+</head>
+<body>
+
+<div class="board">
+  <div class="board-header">
+    <h1>Room Panel</h1>
+    <span class="status-dot" id="connStatus">connecting</span>
+  </div>
+
+  <div class="readouts">
+    <div class="gauge">
+      <div class="gauge-label">Temperature</div>
+      <div class="gauge-value" id="tempVal">--<span>°C</span></div>
+    </div>
+    <div class="gauge">
+      <div class="gauge-label">Humidity</div>
+      <div class="gauge-value" id="humVal">--<span>%</span></div>
+    </div>
+  </div>
+
+  <div class="motion-row">
+    <span class="motion-label">Motion</span>
+    <span class="motion-state clear" id="motionVal">CLEAR</span>
+  </div>
+
+  <div class="switch-panel">
+    <div>
+      <div class="switch-label">Light</div>
+      <div class="switch-sub" id="lightSub">off</div>
+    </div>
+    <div class="rocker" id="rocker" onclick="toggleLight()">
+      <div class="knob"></div>
+    </div>
+  </div>
+
+  <div class="footer-note">created by Prasanth K</div>
+  <div class="footer-note">STM32 · ESP32 · Firebase</div>
+</div>
+
+<!-- Firebase (compat SDK, simplest for a plain HTML page) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<script>
+  // ---- Replace with your Firebase project config ----
+  const firebaseConfig = {
+apiKey: "AIzaSyBF2wGjMcwagnvjLw6x8pOsvLJqA6F3r0Q",
+    authDomain: "finger-attendance--esp-32.firebaseapp.com",
+    databaseURL: "https://finger-attendance--esp-32-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "finger-attendance--esp-32",
+     };
+//
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const auth = firebase.auth();
+
+  // If your Firebase RTDB rules require auth, sign in the same
+  // email/password used in the ESP32 sketch, or use anonymous auth.
+  // auth.signInWithEmailAndPassword("your_email@example.com", "your_firebase_password");
+  auth.signInAnonymously().catch((err) => console.error("Auth error:", err));
+
+  const tempVal = document.getElementById('tempVal');
+  const humVal = document.getElementById('humVal');
+  const motionVal = document.getElementById('motionVal');
+  const rocker = document.getElementById('rocker');
+  const lightSub = document.getElementById('lightSub');
+  const connStatus = document.getElementById('connStatus');
+
+  let lightIsOn = false;
+
+  db.ref('.info/connected').on('value', (snap) => {
+    connStatus.textContent = snap.val() ? 'live' : 'offline';
+  });
+
+  db.ref('/sensor/temperature').on('value', (snap) => {
+    const v = snap.val();
+    if (v !== null) tempVal.innerHTML = v.toFixed(1) + '<span>°C</span>';
+  });
+
+  db.ref('/sensor/humidity').on('value', (snap) => {
+    const v = snap.val();
+    if (v !== null) humVal.innerHTML = v.toFixed(1) + '<span>%</span>';
+  });
+
+  db.ref('/sensor/motion').on('value', (snap) => {
+    const v = snap.val();
+    if (v === 1) {
+      motionVal.textContent = 'DETECTED';
+      motionVal.className = 'motion-state detected';
+    } else {
+      motionVal.textContent = 'CLEAR';
+      motionVal.className = 'motion-state clear';
+    }
+  });
+
+  db.ref('/control/light').on('value', (snap) => {
+    lightIsOn = snap.val() === 1;
+    rocker.classList.toggle('on', lightIsOn);
+    lightSub.textContent = lightIsOn ? 'on' : 'off';
+  });
+
+  function toggleLight() {
+    const next = lightIsOn ? 0 : 1;
+    db.ref('/control/light').set(next);
+  }
+</script>
+
+</body>
+</html>
