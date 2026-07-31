@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Parking Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.5);
+            --success: #10b981;
+            --success-glow: rgba(16, 185, 129, 0.3);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.3);
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 1200px;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .slots-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 1rem;
+        }
+
+        .slot {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 1.2rem;
+            text-align: center;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .slot:hover::after {
+            content: "Click to Clear";
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            z-index: 10;
+            opacity: 0;
+            animation: fadeIn 0.2s forwards;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        .slot.free {
+            border-color: var(--success);
+            box-shadow: 0 0 15px var(--success-glow);
+        }
+
+        .slot.free .slot-status {
+            color: var(--success);
+        }
+
+        .slot.occupied {
+            border-color: var(--danger);
+            box-shadow: 0 0 15px var(--danger-glow);
+        }
+
+        .slot.occupied .slot-status {
+            color: var(--danger);
+        }
+
+        .slot-id {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .slot-status {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .gates-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .gate-box {
+            text-align: center;
+            padding: 1.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+        }
+
+        .gate-state {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+            color: var(--warning);
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        button:hover {
+            background-color: #1d4ed8;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 15px rgba(37, 99, 235, 0.4);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        button.danger {
+            background-color: #dc2626;
+            box-shadow: 0 4px 10px rgba(220, 38, 38, 0.3);
+        }
+
+        button.danger:hover {
+            background-color: #b91c1c;
+            box-shadow: 0 6px 15px rgba(220, 38, 38, 0.4);
+        }
+
+        .connection-status {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--danger);
+        }
+
+        .status-dot.connected {
+            background-color: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        .setup-notice {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 4px solid var(--warning);
+            padding: 1rem;
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 2rem;
+            max-width: 800px;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Smart Parking IoT Dashboard</h1>
+        <p class="subtitle">Real-time Monitoring & Control</p>
+    </header>
+
+    <div class="dashboard">
+        <!-- Overview Stats -->
+        <div class="card">
+            <div class="card-title">Overview</div>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-value" id="totalCars">0</div>
+                    <div class="stat-label">Total Cars</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="freeSlots">10</div>
+                    <div class="stat-label">Free Slots</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gates Status -->
+        <div class="card">
+            <div class="card-title">Gate Status</div>
+            <div class="gates-grid">
+                <div class="gate-box">
+                    <div class="stat-label">Entry Gate</div>
+                    <div class="gate-state" id="entryState">CLOSED</div>
+                    <button onclick="sendCommand('openEntry', true)"
+                        style="width: 100%; justify-content: center; margin-top: 10px; padding: 0.5rem;">
+                        Open Entry
+                    </button>
+                </div>
+                <div class="gate-box">
+                    <div class="stat-label">Exit Gate</div>
+                    <div class="gate-state" id="exitState">CLOSED</div>
+                    <button onclick="sendCommand('openExit', true)"
+                        style="width: 100%; justify-content: center; margin-top: 10px; padding: 0.5rem;">
+                        Open Exit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Parking Slots -->
+    <div class="card" style="width: 100%; max-width: 1200px; margin-bottom: 2rem;">
+        <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Parking Slots</span>
+            <button class="danger" onclick="sendCommand('clearAll', true)"
+                style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                Clear All Slots
+            </button>
+        </div>
+        <div class="slots-container" id="slotsContainer">
+            <!-- Slots will be generated by JS -->
+        </div>
+    </div>
+
+    <div class="connection-status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Disconnected</span>
+    </div>
+
+    <script>
+        // =========================================================================
+        // FIREBASE CONFIGURATION
+        // =========================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyBF2wGjMcwagnvjLw6x8pOsvLJqA6F3r0Q",
+            databaseURL: "https://finger-attendance--esp-32-default-rtdb.asia-southeast1.firebasedatabase.app/"
+        };
+        // =========================================================================
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+        const maxSlots = 10;
+
+        // Initialize DOM Elements
+        const slotsContainer = document.getElementById('slotsContainer');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+
+        // Authenticate User
+        auth.signInWithEmailAndPassword("prasanth.kum22@gmail.com", "project8")
+            .then((userCredential) => {
+                console.log("Signed in:", userCredential.user.email);
+            })
+            .catch((error) => {
+                console.error("Auth error:", error);
+                statusText.innerText = "Auth Error: " + error.message;
+            });
+
+        // Generate Slot UI
+        for (let i = 1; i <= maxSlots; i++) {
+            const slotDiv = document.createElement('div');
+            slotDiv.className = 'slot free';
+            slotDiv.id = `slot-${i}`;
+            slotDiv.onclick = () => clearSlot(i);
+
+            slotDiv.innerHTML = `
+                <div class="slot-id">P${i}</div>
+                <div class="slot-status">FREE</div>
+            `;
+            slotsContainer.appendChild(slotDiv);
+        }
+
+        // --- Firebase Listeners ---
+
+        // Connection Status
+        const connectedRef = db.ref(".info/connected");
+        connectedRef.on("value", (snap) => {
+            if (snap.val() === true) {
+                statusDot.classList.add('connected');
+                statusText.innerText = "Connected to Firebase";
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.innerText = "Disconnected";
+            }
+        });
+
+        // Listen to overall stats
+        db.ref('parking/totalCars').on('value', (snapshot) => {
+            document.getElementById('totalCars').innerText = snapshot.val() !== null ? snapshot.val() : 0;
+        });
+
+        db.ref('parking/freeSlots').on('value', (snapshot) => {
+            document.getElementById('freeSlots').innerText = snapshot.val() !== null ? snapshot.val() : 10;
+        });
+
+        // Listen to gate states
+        db.ref('parking/gates/entryState').on('value', (snapshot) => {
+            const state = snapshot.val() || "CLOSED";
+            document.getElementById('entryState').innerText = state;
+            document.getElementById('entryState').style.color = state === "OPEN" ? "var(--success)" : "var(--warning)";
+        });
+
+        db.ref('parking/gates/exitState').on('value', (snapshot) => {
+            const state = snapshot.val() || "CLOSED";
+            document.getElementById('exitState').innerText = state;
+            document.getElementById('exitState').style.color = state === "OPEN" ? "var(--success)" : "var(--warning)";
+        });
+
+        // Listen to individual slots
+        for (let i = 1; i <= maxSlots; i++) {
+            db.ref(`parking/slots/slot${i}`).on('value', (snapshot) => {
+                const isOccupied = snapshot.val();
+                updateSlotUI(i, isOccupied);
+            });
+        }
+
+        // --- UI Updates ---
+        function updateSlotUI(slotNumber, isOccupied) {
+            const slotEl = document.getElementById(`slot-${slotNumber}`);
+            if (!slotEl) return;
+
+            const statusEl = slotEl.querySelector('.slot-status');
+
+            if (isOccupied) {
+                slotEl.classList.remove('free');
+                slotEl.classList.add('occupied');
+                statusEl.innerText = 'OCCUPIED';
+            } else {
+                slotEl.classList.remove('occupied');
+                slotEl.classList.add('free');
+                statusEl.innerText = 'FREE';
+            }
+        }
+
+        // --- Commands to ESP32 ---
+
+        function sendCommand(commandName, value) {
+            db.ref(`parking/commands/${commandName}`).set(value)
+                .then(() => {
+                    console.log(`Command sent: ${commandName} = ${value}`);
+                    // Optional: show a quick toast or visual feedback here
+                })
+                .catch((error) => {
+                    console.error("Error sending command: ", error);
+                    alert("Failed to send command. Are you connected to Firebase?");
+                });
+        }
+
+        function clearSlot(slotNumber) {
+            if (confirm(`Are you sure you want to send a command to CLEAR Slot P${slotNumber}?`)) {
+                sendCommand('clearSlot', slotNumber);
+            }
+        }
+    </script>
+</body>
+
+</html>
